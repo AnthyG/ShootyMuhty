@@ -61,6 +61,70 @@ function() {
     });
 };
 
+// Adds ctx.getTransform() - returns an SVGMatrix
+// Adds ctx.transformedPoint(x,y) - returns an SVGPoint
+function trackTransforms(ctx) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", 'svg');
+    var xform = svg.createSVGMatrix();
+    ctx.getTransform = function() { return xform; };
+
+    var savedTransforms = [];
+    var save = ctx.save;
+    ctx.save = function() {
+        savedTransforms.push(xform.translate(0, 0));
+        return save.call(ctx);
+    };
+    var restore = ctx.restore;
+    ctx.restore = function() {
+        xform = savedTransforms.pop();
+        return restore.call(ctx);
+    };
+
+    var scale = ctx.scale;
+    ctx.scale = function(sx, sy) {
+        xform = xform.scaleNonUniform(sx, sy);
+        return scale.call(ctx, sx, sy);
+    };
+    var rotate = ctx.rotate;
+    ctx.rotate = function(radians) {
+        xform = xform.rotate(radians * 180 / Math.PI);
+        return rotate.call(ctx, radians);
+    };
+    var translate = ctx.translate;
+    ctx.translate = function(dx, dy) {
+        xform = xform.translate(dx, dy);
+        return translate.call(ctx, dx, dy);
+    };
+    var transform = ctx.transform;
+    ctx.transform = function(a, b, c, d, e, f) {
+        var m2 = svg.createSVGMatrix();
+        m2.a = a;
+        m2.b = b;
+        m2.c = c;
+        m2.d = d;
+        m2.e = e;
+        m2.f = f;
+        xform = xform.multiply(m2);
+        return transform.call(ctx, a, b, c, d, e, f);
+    };
+    var setTransform = ctx.setTransform;
+    ctx.setTransform = function(a, b, c, d, e, f) {
+        xform.a = a;
+        xform.b = b;
+        xform.c = c;
+        xform.d = d;
+        xform.e = e;
+        xform.f = f;
+        return setTransform.call(ctx, a, b, c, d, e, f);
+    };
+    var pt = svg.createSVGPoint();
+    ctx.transformedPoint = function(x, y) {
+        pt.x = x;
+        pt.y = y;
+        return pt.matrixTransform(xform.inverse());
+    }
+}
+
 
 
 interval = undefined;
@@ -69,6 +133,19 @@ fps = 1,
     uDone = false,
     cnr = 4,
     csize = 50;
+
+colors = {
+    0: "#3BAFDA",
+    1: "#4FC1E9",
+    2: "#F6BB42",
+    3: "#FFCE54",
+    4: "#AA8E69",
+    5: "#A0D468",
+    6: "#8CC152",
+    7: "#2ABA66",
+    8: "#AAB2BD",
+    9: "#E6E9ED"
+};
 
 function init(seedR2) {
     var seedR2 = seedR2 || parseInt(generateUUID());
@@ -90,65 +167,52 @@ function init(seedR2) {
         keys: [],
         cx: 0,
         cy: 0,
+        camW: 2,
+        camH: 2,
         draw: function() {
             if (this.keys[38] || this.keys[87]) { // Up
                 if (this.velY > -this.speed)
                     this.velY -= this.accel + (this.keys[16] ? this.sprint_accel : 0);
-
-                // this.y -= this.speed;
-                // if (this.y < 0) {
-                //     this.y = 400;
-                //     this.cy -= 1;
-                // }
-
-                // this.cy = (this.y % 400);
-                // this.cy = Math.round((400 % this.y) / 400);
             }
             if (this.keys[39] || this.keys[68]) { // Right
                 if (this.velX < this.speed)
                     this.velX += this.accel + (this.keys[16] ? this.sprint_accel : 0);
-
-                // this.x += this.speed;
-                // if (this.x > 400) {
-                //     this.x = 0;
-                //     this.cx += 1;
-                // }
-
-                // this.cx = (this.x % 400);
-                // this.cx = Math.round((400 % this.x) / 400);
             }
             if (this.keys[40] || this.keys[83]) { // Down
                 if (this.velY < this.speed)
                     this.velY += this.accel + (this.keys[16] ? this.sprint_accel : 0);
-
-                // this.y += this.speed;
-                // if (this.y > 400) {
-                //     this.y = 0;
-                //     this.cy += 1;
-                // }
-
-                // this.cy = (this.y % 400);
-                // this.cy = Math.round((400 % this.y) / 400);
             }
             if (this.keys[37] || this.keys[65]) { // Left
                 if (this.velX > -this.speed)
                     this.velX -= this.accel + (this.keys[16] ? this.sprint_accel : 0);
-
-                // this.x -= this.speed;
-                // if (this.x < 0) {
-                //     this.x = 400;
-                //     this.cx -= 1;
-                // }
-
-                // this.cx = (this.x % 400);
-                // this.cx = Math.round((400 % this.x) / 400);
             }
+
+            if (Math.abs(this.velX) < 0.00001)
+                this.velX = 0;
+            if (Math.abs(this.velY) < 0.00001)
+                this.velY = 0;
 
             this.velX *= this.friction;
             this.x += this.velX;
             this.velY *= this.friction;
             this.y += this.velY;
 
+            // if (this.y < 0) {
+            //     this.y = cnr * 2 * csize * this.camH;
+            //     this.cy -= this.camH;
+            // }
+            // if (this.x > cnr * 2 * csize * this.camW) {
+            //     this.x = 0;
+            //     this.cx += this.camW;
+            // }
+            // if (this.y > cnr * 2 * csize * this.camH) {
+            //     this.y = 0;
+            //     this.cy += this.camH;
+            // }
+            // if (this.x < 0) {
+            //     this.x = cnr * 2 * csize * this.camW;
+            //     this.cx -= this.camW;
+            // }
             if (this.y < 0) {
                 this.y = 400;
                 this.cy -= 1;
@@ -172,8 +236,8 @@ function init(seedR2) {
             ctx.strokeStyle = "20px solid black";
             ctx.beginPath();
             ctx.arc(
-                (p.x + csize), // (p.x + csize) % (cnr * 2 * csize) + csize,
-                (p.y + csize), // (p.y + csize) % (cnr * 2 * csize) + csize,
+                (p.x + csize),
+                (p.y + csize),
                 10, 0, Math.PI * 2);
             ctx.stroke();
             ctx.fill();
@@ -197,6 +261,35 @@ window.onload = function() {
     document.addEventListener("keydown", keyDownHandler, false);
     document.addEventListener("keyup", keyUpHandler, false);
 
+    /** CREDIT FOR THE SCROLL-TRANSFORM-STUFF GOES TO
+     *  https://stackoverflow.com/a/5526721/5712160
+     * http://phrogz.net/tmp/canvas_zoom_to_cursor.html
+     */
+    trackTransforms(ctx);
+
+    // cvs.addEventListener('mousemove', function(evt) {
+    //     lastX = evt.offsetX || (evt.pageX - cvs.offsetLeft);
+    //     lastY = evt.offsetY || (evt.pageY - cvs.offsetTop);
+    // }, false);
+    lastX = cvs.offsetWidth / 2;
+    lastY = cvs.offsetHeight / 2;
+    var scaleFactor = 1.1;
+    var zoom = function(clicks) {
+        var pt = ctx.transformedPoint(lastX, lastY);
+        ctx.translate(pt.x, pt.y);
+        var factor = Math.pow(scaleFactor, clicks);
+        ctx.scale(factor, factor);
+        ctx.translate(-pt.x, -pt.y);
+    }
+
+    var handleScroll = function(evt) {
+        var delta = evt.wheelDelta ? evt.wheelDelta / 40 : evt.detail ? -evt.detail : 0;
+        if (delta) zoom(delta);
+        return evt.preventDefault() && false;
+    };
+    cvs.addEventListener('DOMMouseScroll', handleScroll, false);
+    cvs.addEventListener('mousewheel', handleScroll, false);
+
     init(2);
 };
 
@@ -217,7 +310,7 @@ function keyUpHandler(event) {
 }
 
 drawLand = function(x, y, s) {
-    var offset = 1;
+    var offset = 1 * csize;
 
     var x = x + offset;
     var y = y + offset;
@@ -226,7 +319,10 @@ drawLand = function(x, y, s) {
         ctx.save();
 
         var sS = s.toString().slice(0, 1);
-        var clr = "#" + sS + sS + sS + sS + sS + sS;
+
+        var clr = colors[sS];
+        // var clr = "#" + sS + sS + sS + sS + sS + sS;
+
         // var sS = s.toString().slice(2);
         // var clr = "#" + sS[1] + sS[2] + sS[3] + sS[4] + sS[5] + sS[6];
 
@@ -234,20 +330,103 @@ drawLand = function(x, y, s) {
 
         // log("Drawing land-tile", x, y, x * csize, y * csize, clr, s);
 
-        ctx.fillRect(x * csize, y * csize, csize, csize);
+        ctx.fillRect(x, y, csize, csize);
 
         ctx.fillStyle = "white";
         ctx.font = "10px Arial";
         ctx.textAlign = "left";
-        ctx.fillText(sS + ":" + (x - offset) + "|" + (y - offset), x * csize + 5, y * csize + 15);
+        ctx.fillText(sS, x + 5, y + 15);
+        // ctx.fillText(sS + ":" + (x - offset) + "|" + (y - offset), x * csize + 5, y * csize + 15);
 
         ctx.restore();
     })();
 };
 
+genChunk = function(cx, cy) {
+    var s_x = Math.seed(cx * seed + seed)(),
+        s_y = Math.seed(cy * seed + seed)();
+
+    var s_ul = Math.seed(s_y * cnr - s_x)() * 10,
+        s_ur = Math.seed(s_y * cnr + s_x)() * 10,
+        s_ll = Math.seed(-s_y * cnr - s_x)() * 10,
+        s_lr = Math.seed(-s_y * cnr + s_x)() * 10;
+
+    var cnr21 = cnr * 2 - 1;
+    if (typeof chunks[cy - 1] !== "undefined") { // Above
+        if (typeof chunks[cy - 1][cx - 1] !== "undefined") { // Above to the left
+            s_ul = chunks[cy - 1][cx - 1][cnr21][cnr21];
+        }
+        if (typeof chunks[cy - 1][cx] !== "undefined") { // Directly above
+            s_ul = chunks[cy - 1][cx][0][cnr21];
+            s_ur = chunks[cy - 1][cx][cnr21][cnr21];
+        }
+        if (typeof chunks[cy - 1][cx + 1] !== "undefined") { // Above to the right
+            s_ur = chunks[cy - 1][cx + 1][0][cnr21];
+        }
+    }
+    if (typeof chunks[cy] !== "undefined") { // Same line
+        if (typeof chunks[cy][cx - 1] !== "undefined") { // Same line to the left
+            s_ul = chunks[cy][cx - 1][cnr21][0];
+            s_ll = chunks[cy][cx - 1][cnr21][cnr21];
+        }
+        if (typeof chunks[cy][cx + 1] !== "undefined") { // Same line to the right
+            s_ur = chunks[cy][cx + 1][0][0];
+            s_lr = chunks[cy][cx + 1][0][cnr21];
+        }
+    }
+    if (typeof chunks[cy + 1] !== "undefined") { // Beneath
+        if (typeof chunks[cy + 1][cx - 1] !== "undefined") { // Beneath to the left
+            s_ll = chunks[cy + 1][cx - 1][cnr21][0];
+        }
+        if (typeof chunks[cy + 1][cx] !== "undefined") { // Directly beneath
+            s_ll = chunks[cy + 1][cx][0][0];
+            s_lr = chunks[cy + 1][cx][cnr21][0];
+        }
+        if (typeof chunks[cy + 1][cx + 1] !== "undefined") { // Beneath to the right
+            s_lr = chunks[cy + 1][cx + 1][0][0];
+        }
+    }
+
+    // log("sCorners", s_ul, s_ur, s_ll, s_lr);
+
+    ipoArrsH = [
+        interpolationArray(s_ul, s_ur, cnr * 2),
+        interpolationArray(s_ll, s_lr, cnr * 2)
+    ];
+    ipoArrsH[0].unshift(s_ul);
+    ipoArrsH[0][cnr * 2 - 1] = s_ur;
+    ipoArrsH[1].unshift(s_ll);
+    ipoArrsH[1][cnr * 2 - 1] = s_lr;
+
+    // log("ipoH", ipoArrsH);
+
+    ipoArrsV = [];
+    for (var x = 0; x < cnr * 2; x++) {
+        var x1 = ipoArrsH[0][x],
+            x2 = ipoArrsH[1][x];
+
+        // log("g-ipoV", x, x1, x2);
+
+        ipoArrsV[x] = interpolationArray(x1, x2, cnr * 2);
+        ipoArrsV[x].unshift(x1);
+        ipoArrsV[x][cnr * 2 - 1] = x2;
+    }
+
+    // log("ipoV", ipoArrsV);
+
+    if (typeof chunks[cy] === "undefined")
+        chunks[cy] = [];
+    if (typeof chunks[cy][cx] === "undefined")
+        chunks[cy][cx] = ipoArrsV;
+}
+
 function update() {
     ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, cvs.width, cvs.height);
+    // ctx.fillRect(0, 0, cvs.width, cvs.height);
+    var p1 = ctx.transformedPoint(0, 0);
+    var p2 = ctx.transformedPoint(cvs.width, cvs.height);
+    ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+    // ctx.clearRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
 
     if (fpsi >= fps) {
         fpsi = 0;
@@ -257,58 +436,38 @@ function update() {
 
     // Update-stuff beneath here please
 
-
-    // cseed = Math.seed(p.cx + p.cy + seed)();
-    // log("Cur seed", cseed);
-
     if (uDone || !inited) {
         inited = true;
         if (JSON.stringify(old_p) !== JSON.stringify(p)) {
-            var s_x = Math.seed(p.cx * seed + seed)(),
-                s_y = Math.seed(p.cy * seed + seed)();
+            // log("Player updated");
 
-            var s_ul = Math.seed(s_y * cnr - s_x)() * 10,
-                s_ur = Math.seed(s_y * cnr + s_x)() * 10,
-                s_ll = Math.seed(-s_y * cnr - s_x)() * 10,
-                s_lr = Math.seed(-s_y * cnr + s_x)() * 10;
-
-            // log("sCorners", s_ul, s_ur, s_ll, s_lr);
-
-            ipoArrsH = [
-                interpolationArray(s_ul, s_ur, cnr * 2),
-                interpolationArray(s_ll, s_lr, cnr * 2)
-            ];
-            ipoArrsH[0].unshift(s_ul);
-            ipoArrsH[0][cnr * 2 - 1] = s_ur;
-            ipoArrsH[1].unshift(s_ll);
-            ipoArrsH[1][cnr * 2 - 1] = s_lr;
-
-            // log("ipoH", ipoArrsH);
-
-            ipoArrsV = [];
-            for (var x = 0; x < cnr * 2; x++) {
-                var x1 = ipoArrsH[0][x],
-                    x2 = ipoArrsH[1][x];
-
-                // log("g-ipoV", x, x1, x2);
-
-                ipoArrsV[x] = interpolationArray(x1, x2, cnr * 2);
-                ipoArrsV[x].unshift(x1);
-                ipoArrsV[x][cnr * 2 - 1] = x2;
+            genChunk(p.cx, p.cy);
+            for (var cy = -p.camH; cy < p.camH + 1; cy++) {
+                for (var cx = -p.camW; cx < p.camW + 1; cx++) {
+                    genChunk(p.cx + cx, p.cy + cy);
+                }
             }
-
-            // log("ipoV", ipoArrsV);
-
-
 
             old_p = JSON.parse(JSON.stringify(p));
         }
     }
 
-    for (var x = 0; x < cnr * 2; x++) {
-        let arr = ipoArrsV[x];
-        for (var y = 0; y < cnr * 2; y++) {
-            drawLand(x, y, arr[y]);
+    for (var cy = -p.camH; cy < p.camH + 1; cy++) {
+        if (typeof chunks[p.cy + cy] !== "undefined") {
+            for (var cx = -p.camW; cx < p.camW + 1; cx++) {
+                if (typeof chunks[p.cy + cy][p.cx + cx] !== "undefined") {
+                    let arr = chunks[p.cy + cy][p.cx + cx];
+
+                    // log("Drawing chunk", p.cy + cy, p.cx + cx, arr);
+
+                    for (var y = 0; y < cnr * 2; y++) {
+                        for (var x = 0; x < cnr * 2; x++) {
+                            // x * csize, y * csize
+                            drawLand((cx * cnr * 2 + x) * csize, (cy * cnr * 2 + y) * csize, arr[x][y]);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -332,15 +491,3 @@ function update() {
 
     requestAnimationFrame(update);
 }
-
-/*
-a2d = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9]
-];
-
-a1d = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-a2d[1][2] === a1d[1 * 3 + 2];
-*/
