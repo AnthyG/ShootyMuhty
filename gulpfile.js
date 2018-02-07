@@ -64,7 +64,13 @@ gulp.task("scripts", function() {
             packageCache: {},
             insertGlobals: true
         })
+        .on("error", (...err) => {
+            console.log("ERROR", err);
+        })
         .bundle()
+        .on("error", (...err) => {
+            console.log("ERROR", err);
+        })
         .pipe(source("bundle.js"))
         .pipe(buffer())
         .pipe(sourcemaps.init({ loadMaps: true }))

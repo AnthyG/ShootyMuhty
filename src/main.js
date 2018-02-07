@@ -129,10 +129,15 @@ function trackTransforms(ctx) {
 
 interval = undefined;
 fps = 1,
-    fpsi = cntr = 0,
+    timestamp_s = undefined,
+    timestamp_f = timestamp_lf = 0,
+    fpsis = [],
+    fpsi = 0,
+    cntr = 1,
     uDone = false,
     cnr = 4,
-    csize = 50;
+    csize = 50,
+    lastX = 0, lastY = 0;
 
 colors = {
     0: "#3BAFDA",
@@ -158,18 +163,41 @@ function init(seedR2) {
     p = {
         x: (cvs.width - csize * 2) / 2,
         y: (cvs.height - csize * 2) / 2,
+
         velX: 0,
         velY: 0,
         speed: 4,
+
         accel: 1,
         sprint_accel: 3,
         friction: 0.875,
+
         keys: [],
+
         cx: 0,
         cy: 0,
         camW: 2,
         camH: 2,
-        draw: function() {
+
+        faceDir: 0,
+
+        maxAmmo: 20,
+        ammo: 20,
+        ammoReload: 30000,
+        ammoCurReload: 0,
+
+        shooting: false,
+        shootCooldown: 4000,
+        shootCurCooldown: 0,
+
+        bulletSpeed: 10,
+        bulletAccel: 3,
+        bulletFriction: 1,
+        bulletTime: 25000,
+
+        bullets: [],
+
+        move: function() {
             if (this.keys[38] || this.keys[87]) { // Up
                 if (this.velY > -this.speed)
                     this.velY -= this.accel + (this.keys[16] ? this.sprint_accel : 0);
@@ -187,15 +215,18 @@ function init(seedR2) {
                     this.velX -= this.accel + (this.keys[16] ? this.sprint_accel : 0);
             }
 
-            if (Math.abs(this.velX) < 0.00001)
-                this.velX = 0;
-            if (Math.abs(this.velY) < 0.00001)
-                this.velY = 0;
+            // if (Math.abs(this.velX) < 0.00001)
+            //     this.velX = 0;
+            // if (Math.abs(this.velY) < 0.00001)
+            //     this.velY = 0;
 
             this.velX *= this.friction;
             this.x += this.velX;
             this.velY *= this.friction;
             this.y += this.velY;
+
+            this.x = Math.round(this.x);
+            this.y = Math.round(this.y);
 
             // if (this.y < 0) {
             //     this.y = cnr * 2 * csize * this.camH;
@@ -214,36 +245,232 @@ function init(seedR2) {
             //     this.cx -= this.camW;
             // }
             if (this.y < 0) {
-                this.y = 400;
+                this.y = cvs.height - csize * 2;
                 this.cy -= 1;
             }
-            if (this.x > 400) {
+            if (this.x > cvs.width - csize * 2) {
                 this.x = 0;
                 this.cx += 1;
             }
-            if (this.y > 400) {
+            if (this.y > cvs.height - csize * 2) {
                 this.y = 0;
                 this.cy += 1;
             }
             if (this.x < 0) {
-                this.x = 400;
+                this.x = cvs.width - csize * 2;
                 this.cx -= 1;
             }
-
+        },
+        draw: function() {
             ctx.save();
 
             ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
             ctx.strokeStyle = "20px solid black";
             ctx.beginPath();
             ctx.arc(
-                (p.x + csize),
-                (p.y + csize),
-                10, 0, Math.PI * 2);
+                ((cvs.width - csize * 2) / 2) + csize,
+                ((cvs.height - csize * 2) / 2) + csize,
+                10, 0, Math.PI * 2
+            );
             ctx.stroke();
             ctx.fill();
             ctx.closePath();
 
             ctx.restore();
+
+            this.moveFace();
+
+            if (this.shooting)
+                this.shoot();
+
+            if (this.ammo <= 0 && this.ammoCurReload === 0)
+                this.ammoCurReload = this.ammoReload;
+        },
+        tick: function(ms) {
+            // log("tick", ms);
+
+            this.ammoCurReload -= ms;
+            this.shootCurCooldown -= ms;
+
+            if (this.ammoCurReload <= 0) {
+                this.ammoCurReload = 0;
+
+                if (this.ammo <= 0)
+                    this.ammo = this.maxAmmo;
+            }
+            if (this.shootCurCooldown <= 0) {
+                this.shootCurCooldown = 0;
+            }
+
+            this.moveBullets(ms);
+        },
+        moveFace: function() {
+            var angle = -Math.atan2(-(lastY - (((cvs.height - csize * 2) / 2) + csize)), (lastX - (((cvs.width - csize * 2) / 2) + csize)));
+
+            // log("faceDir", angle * (180 / Math.PI));
+
+            this.faceDir = angle;
+
+            this.drawFace();
+        },
+        drawFace: function() {
+            ctx.save();
+
+            var r = 3.5;
+            ctx.strokeStyle = "#000000";
+            ctx.moveTo(((cvs.width - csize * 2) / 2) + csize, ((cvs.height - csize * 2) / 2) + csize);
+            ctx.lineTo(
+                (((cvs.width - csize * 2) / 2) + csize) + r * Math.cos(this.faceDir),
+                (((cvs.height - csize * 2) / 2) + csize) + r * Math.sin(this.faceDir)
+            );
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+            ctx.beginPath();
+            ctx.arc(
+                (((cvs.width - csize * 2) / 2) + csize) + r * Math.cos(this.faceDir),
+                (((cvs.height - csize * 2) / 2) + csize) + r * Math.sin(this.faceDir),
+                5, this.faceDir + Math.PI * 1.55, this.faceDir + Math.PI * 0.45
+            );
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.fillStyle = colors[chunks[this.cy][this.cx][parseInt((this.x % (cnr * 2 * csize)) / csize)][parseInt((this.y % (cnr * 2 * csize)) / csize)].toString().slice(0, 1)] + "ef";
+            // ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+            ctx.beginPath();
+            ctx.arc(
+                (((cvs.width - csize * 2) / 2) + csize) + r * Math.cos(this.faceDir),
+                (((cvs.height - csize * 2) / 2) + csize) + r * Math.sin(this.faceDir),
+                4, this.faceDir + Math.PI * 1.65, this.faceDir + Math.PI * 0.35
+            );
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.restore();
+        },
+        Bullet: function(dat_) {
+            // log("Dat 1", JSON.parse(JSON.stringify(dat_)));
+            return (function(dat) {
+                return {
+                    uuid: generateUUID(),
+
+                    x: dat.x,
+                    y: dat.y,
+                    cx: dat.cx,
+                    cy: dat.cy,
+
+                    clr: colors[chunks[dat.cy][dat.cx][parseInt((dat.x % (cnr * 2 * csize)) / csize)][parseInt((dat.y % (cnr * 2 * csize)) / csize)].toString().slice(0, 1)],
+
+                    velX: dat.velX,
+                    velY: dat.velY,
+
+                    speed: dat.bulletSpeed,
+
+                    accel: dat.bulletAccel,
+                    friction: dat.bulletFriction,
+
+                    angle: dat.faceDir,
+
+                    time: dat.bulletTime,
+
+                    print: function() {
+                        log("Bullet", this, JSON.parse(JSON.stringify(this)));
+                    },
+
+                    move: function() {
+                        // this.print();
+
+                        if (this.velY > -this.speed && this.velY < this.speed)
+                            this.velY += Math.sin(this.angle) * this.accel;
+                        if (this.velX < this.speed && this.velX > -this.speed)
+                            this.velX += Math.cos(this.angle) * this.accel;
+
+                        this.velX *= this.friction;
+                        this.x += this.velX;
+                        this.velY *= this.friction;
+                        this.y += this.velY;
+
+                        if (this.y < 0) {
+                            this.y = cvs.height - csize * 2;
+                            this.cy -= 1;
+                        }
+                        if (this.x > cvs.width - csize * 2) {
+                            this.x = 0;
+                            this.cx += 1;
+                        }
+                        if (this.y > cvs.height - csize * 2) {
+                            this.y = 0;
+                            this.cy += 1;
+                        }
+                        if (this.x < 0) {
+                            this.x = cvs.width - csize * 2;
+                            this.cx -= 1;
+                        }
+                    },
+                    draw: function() {
+                        ctx.save();
+
+                        var hinX = cnr * csize - p.x - p.cx * cnr * 2 * csize,
+                            hinY = cnr * csize - p.y - p.cy * cnr * 2 * csize;
+
+                        ctx.translate(hinX, hinY);
+
+                        ctx.fillStyle = this.clr + "ee";
+                        ctx.strokeStyle = "rgba(0, 0, 0, 0.95)";
+                        ctx.beginPath();
+                        ctx.arc((this.cx * cnr * 2) * csize + this.x + csize, (this.cy * cnr * 2) * csize + this.y + csize,
+                            // ctx.arc((this.cx - dat.cx) * cnr * 2 * csize + (this.x - dat.x) + csize, (this.cy - dat.cy) * cnr * 2 * csize + (this.y - dat.y) + csize,
+                            5, 0, Math.PI * 2
+                        );
+                        ctx.stroke();
+                        ctx.fill();
+                        ctx.closePath();
+
+                        ctx.translate(-hinX, -hinY);
+
+                        ctx.restore();
+                    },
+                    tick: function(ms) {
+                        // log("tick 2 ", ms);
+
+                        this.time -= ms;
+                    }
+                };
+            })(dat_);
+        },
+        shoot: function() {
+            if (this.shootCurCooldown !== 0 ||
+                this.ammoCurReload !== 0)
+                return false;
+
+            if (this.ammo > 0) {
+                var bi = this.bullets.push(this.Bullet(JSON.parse(JSON.stringify(this)))) - 1;
+
+                // log("Shot!", bi, JSON.parse(JSON.stringify(this.bullets[bi])));
+
+                this.ammo--;
+                this.shootCurCooldown = this.shootCooldown;
+            } else {
+                this.ammoCurReload = this.ammoReload;
+            }
+        },
+        moveBullets: function(ms) {
+            for (var i = 0; i < this.bullets.length; i++) {
+                var b = this.bullets[i];
+
+                // log(i, b);
+
+                b.move();
+
+                b.draw();
+
+                b.tick(ms);
+
+                // b.print();
+
+                if (b.time <= 0)
+                    this.bullets.splice(i, 1);
+            }
         }
     };
 
@@ -251,7 +478,7 @@ function init(seedR2) {
 
     inited = false;
 
-    update();
+    requestAnimationFrame(update);
 }
 
 window.onload = function() {
@@ -267,20 +494,48 @@ window.onload = function() {
      */
     trackTransforms(ctx);
 
-    // cvs.addEventListener('mousemove', function(evt) {
-    //     lastX = evt.offsetX || (evt.pageX - cvs.offsetLeft);
-    //     lastY = evt.offsetY || (evt.pageY - cvs.offsetTop);
-    // }, false);
-    lastX = cvs.offsetWidth / 2;
-    lastY = cvs.offsetHeight / 2;
-    var scaleFactor = 1.1;
+    cvs.addEventListener('mousemove', function(evt) {
+        lastX = evt.offsetX || (evt.pageX - cvs.offsetLeft);
+        lastY = evt.offsetY || (evt.pageY - cvs.offsetTop);
+        // lastTransformX = evt.offsetX || (evt.pageX - cvs.offsetLeft);
+        // lastTransformY = evt.offsetY || (evt.pageY - cvs.offsetTop);
+    }, false);
+
+    cvs.addEventListener('mousedown', function(evt) {
+        p.shooting = true;
+    }, false);
+    cvs.addEventListener('mouseup', function(evt) {
+        p.shooting = false;
+    }, false);
+    cvs.addEventListener('click', function(evt) {
+        p.shoot();
+    }, false);
+
+    lastTransformX = cvs.offsetWidth / 2;
+    lastTransformY = cvs.offsetHeight / 2;
+
+    var scaleFactor = 1.5;
     var zoom = function(clicks) {
-        var pt = ctx.transformedPoint(lastX, lastY);
+        var pt = ctx.transformedPoint(lastTransformX, lastTransformY);
         ctx.translate(pt.x, pt.y);
         var factor = Math.pow(scaleFactor, clicks);
+
+        // log("zoom-factor", clicks, factor, factor > 1, factor < 1);
+        // if (factor > 1) {
+        //     p.camW > 2 && (p.camW -= p.camW);
+        //     p.camH > 2 && (p.camH -= p.camH);
+        //     if (p.camW === 0)
+        //         p.camW = 1;
+        //     if (p.camH === 0)
+        //         p.camH = 1;
+        // } else if (factor < 1) {
+        //     p.camW += p.camW;
+        //     p.camH += p.camH;
+        // }
+
         ctx.scale(factor, factor);
         ctx.translate(-pt.x, -pt.y);
-    }
+    };
 
     var handleScroll = function(evt) {
         var delta = evt.wheelDelta ? evt.wheelDelta / 40 : evt.detail ? -evt.detail : 0;
@@ -316,8 +571,6 @@ drawLand = function(x, y, s) {
     var y = y + offset;
 
     return (function() {
-        ctx.save();
-
         var sS = s.toString().slice(0, 1);
 
         var clr = colors[sS];
@@ -332,17 +585,19 @@ drawLand = function(x, y, s) {
 
         ctx.fillRect(x, y, csize, csize);
 
-        ctx.fillStyle = "white";
-        ctx.font = "10px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText(sS, x + 5, y + 15);
+        // ctx.fillStyle = "white";
+        // ctx.font = "10px Arial";
+        // ctx.textAlign = "left";
+        // ctx.fillText(sS, x + 5, y + 15);
         // ctx.fillText(sS + ":" + (x - offset) + "|" + (y - offset), x * csize + 5, y * csize + 15);
-
-        ctx.restore();
     })();
 };
 
 genChunk = function(cx, cy) {
+    if (typeof chunks[cy] !== "undefined")
+        if (typeof chunks[cy][cx] !== "undefined")
+            return true;
+
     var s_x = Math.seed(cx * seed + seed)(),
         s_y = Math.seed(cy * seed + seed)();
 
@@ -420,7 +675,12 @@ genChunk = function(cx, cy) {
         chunks[cy][cx] = ipoArrsV;
 }
 
-function update() {
+function update(timestamp) {
+    if (!timestamp_s) timestamp_s = timestamp;
+    timestamp_f = timestamp - timestamp_s;
+    if (!timestamp_lf) timestamp_lf = timestamp_f;
+    timestamp_diff = timestamp_f - timestamp_lf;
+
     ctx.fillStyle = "black";
     // ctx.fillRect(0, 0, cvs.width, cvs.height);
     var p1 = ctx.transformedPoint(0, 0);
@@ -428,18 +688,23 @@ function update() {
     ctx.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
     // ctx.clearRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
 
-    if (fpsi >= fps) {
+    if (timestamp_diff >= 500) {
+        uDone = true;
+    }
+    if (timestamp_diff >= 1000) {
         fpsi = 0;
         cntr++;
-        uDone = true;
+
+        // log(timestamp_f, timestamp_lf, timestamp_diff);
+        timestamp_lf = timestamp_f;
     }
 
     // Update-stuff beneath here please
 
     if (uDone || !inited) {
         inited = true;
-        if (JSON.stringify(old_p) !== JSON.stringify(p)) {
-            // log("Player updated");
+        if (old_p.cx !== p.cx || old_p.cy !== p.cy || old_p.camW !== p.camW || old_p.camH !== p.camH) {
+            log("Player updated");
 
             genChunk(p.cx, p.cy);
             for (var cy = -p.camH; cy < p.camH + 1; cy++) {
@@ -452,6 +717,13 @@ function update() {
         }
     }
 
+    p.move();
+
+    var hinX = cnr * csize - p.x,
+        hinY = cnr * csize - p.y;
+
+    ctx.translate(hinX, hinY);
+
     for (var cy = -p.camH; cy < p.camH + 1; cy++) {
         if (typeof chunks[p.cy + cy] !== "undefined") {
             for (var cx = -p.camW; cx < p.camW + 1; cx++) {
@@ -462,7 +734,8 @@ function update() {
 
                     for (var y = 0; y < cnr * 2; y++) {
                         for (var x = 0; x < cnr * 2; x++) {
-                            // x * csize, y * csize
+                            // drawLand((cx * cnr * 2 + x) * csize - (Math.round(p.x) - cnr * csize), (cy * cnr * 2 + y) * csize - (Math.round(p.y) - cnr * csize), arr[x][y]);
+
                             drawLand((cx * cnr * 2 + x) * csize, (cy * cnr * 2 + y) * csize, arr[x][y]);
                         }
                     }
@@ -471,23 +744,49 @@ function update() {
         }
     }
 
+    ctx.translate(-hinX, -hinY);
+
+    p.tick(timestamp_diff);
+
     p.draw();
 
     // Update stuff above here please
 
-    ctx.fillStyle = "white";
-    ctx.font = "10px Arial";
-    ctx.textAlign = "left";
-    ctx.fillText("fps: " + fpsi + "/" + fps, 5, 1 * 15);
-    ctx.fillText("cntr: " + cntr, 5, 2 * 15);
-    ctx.fillText("x | y: " + p.x + " | " + p.y, 5, 3 * 15);
-    ctx.fillText("cx | cy: " + p.cx + " | " + p.cy, 5, 4 * 15);
-    ctx.fillText("velX | velY: " + p.velX + " | " + p.velY, 5, 5 * 15);
-    // ctx.fillText("cx | cy: " + (p.cx % cnr) + " | " + (p.cy % cnr), 5, 4 * 15);
-    // ctx.fillText("cseed: " + cseed, 5, 5 * 15);
-
-    fpsi++;
+    while (fpsis.length > 0 && fpsis[0] <= timestamp - 1000) {
+        fpsis.shift();
+    }
+    fpsis.push(timestamp);
+    fpsi = fpsis.length;
     uDone = false;
+
+    ctx.save();
+    ctx.textAlign = "left";
+    var infoTexts = [
+        "fps: " + fpsi + "/" + fps,
+        // "timestamp: " + timestamp,
+        // "timestamps: " + timestamp_s + " | " + timestamp + " | " + timestamp_f,
+        "cntr: " + cntr,
+        "x | y: " + p.x + " | " + p.y,
+        "cx | cy: " + p.cx + " | " + p.cy,
+        // "velX | velY: " + p.velX + " | " + p.velY,
+        // "lastX | lastY: " + lastX + " | " + lastY,
+        // "rad: " + p.faceDir,
+        "seed: " + seed,
+        "ammo: " + p.ammo,
+        "ammoCurReload: " + p.ammoCurReload,
+        "shootCurCooldown: " + p.shootCurCooldown
+    ];
+    for (var i = 0; i < infoTexts.length; i++) {
+        var t = infoTexts[i];
+
+        ctx.strokeStyle = "5px solid black";
+        ctx.font = "10px Arial";
+        ctx.strokeText(t, 5, i * 15 + 15);
+        ctx.fillStyle = "white";
+        ctx.font = "10px Arial";
+        ctx.fillText(t, 5, i * 15 + 15);
+    }
+    ctx.restore();
 
     requestAnimationFrame(update);
 }
