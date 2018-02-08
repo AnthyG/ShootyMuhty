@@ -1,7 +1,7 @@
 Enemy = Class(MovingObject, {
     initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["sprintAccel", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bullets"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bullets) {
+    initProps2: ["sprintAccel", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bullets", "hp"],
+    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bulletDmg, bullets, hp) {
         var dis = this;
 
         var superStr = "dis.$super('initialize', ";
@@ -74,17 +74,20 @@ Enemy = Class(MovingObject, {
     draw: function() {
         ctx.enemies.save();
 
-        var hinX = cnr * csize + csize - p.x,
-            hinY = cnr * csize + csize - p.y;
+        var hinX = ((1 - p.cx * 2) * cnr + 1) * csize - p.x,
+            hinY = ((1 - p.cy * 2) * cnr + 1) * csize - p.y;
+
+        var cxx_d = (this.cx * cnr * 2) * csize + this.x,
+            cyy_d = (this.cy * cnr * 2) * csize + this.y;
 
         ctx.enemies.translate(hinX, hinY);
 
-        ctx.enemies.fillStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.enemies.fillStyle = "rgba(255, 0, 0, 0.5)";
         ctx.enemies.strokeStyle = "20px solid black";
         ctx.enemies.beginPath();
         ctx.enemies.arc(
-            (this.cx * cnr * 2 + this.x - 1) * csize,
-            (this.cy * cnr * 2 + this.y - 1) * csize,
+            cxx_d,
+            cyy_d,
             10, 0, Math.PI * 2
         );
         ctx.enemies.stroke();
@@ -122,7 +125,14 @@ Enemy = Class(MovingObject, {
         this.moveBullets(ms);
     },
     moveFace: function() {
-        var angle = -Math.atan2(-(lastY - (((cvs.enemies.height - csize * 2) / 2) + csize)), (lastX - (((cvs.enemies.width - csize * 2) / 2) + csize)));
+        var angle = 0;
+
+        // The following doesn't quite work for these (ignoring the fact that the aren't controlled by the player)
+        var cxx_d = (this.cx * cnr * 2) * csize + this.x,
+            cyy_d = (this.cy * cnr * 2) * csize + this.y;
+
+        var angle = -Math.atan2(-((p.cy * cnr * 2 * csize + p.y) - (cyy_d)), ((p.cx * cnr * 2 * csize + p.x) - (cxx_d)));
+
 
         // log("angle", angle * (180 / Math.PI));
 
@@ -133,20 +143,28 @@ Enemy = Class(MovingObject, {
     drawFace: function() {
         ctx.enemies.save();
 
+        var hinX = ((1 - p.cx * 2) * cnr + 1) * csize - p.x,
+            hinY = ((1 - p.cy * 2) * cnr + 1) * csize - p.y;
+
+        var cxx_d = (this.cx * cnr * 2) * csize + this.x,
+            cyy_d = (this.cy * cnr * 2) * csize + this.y;
+
+        ctx.enemies.translate(hinX, hinY);
+
         var r = 3.5;
         ctx.enemies.strokeStyle = "#000000";
-        ctx.enemies.moveTo(((cvs.enemies.width - csize * 2) / 2) + csize, ((cvs.enemies.height - csize * 2) / 2) + csize);
+        ctx.enemies.moveTo(cxx_d, cyy_d);
         ctx.enemies.lineTo(
-            (((cvs.enemies.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
-            (((cvs.enemies.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle)
+            (cxx_d) + r * Math.cos(this.angle),
+            (cyy_d) + r * Math.sin(this.angle)
         );
         ctx.enemies.stroke();
 
         ctx.enemies.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.enemies.beginPath();
         ctx.enemies.arc(
-            (((cvs.enemies.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
-            (((cvs.enemies.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle),
+            (cxx_d) + r * Math.cos(this.angle),
+            (cyy_d) + r * Math.sin(this.angle),
             5, this.angle + Math.PI * 1.55, this.angle + Math.PI * 0.45
         );
         ctx.enemies.fill();
@@ -160,12 +178,14 @@ Enemy = Class(MovingObject, {
 
         ctx.enemies.beginPath();
         ctx.enemies.arc(
-            (((cvs.enemies.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
-            (((cvs.enemies.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle),
+            (cxx_d) + r * Math.cos(this.angle),
+            (cyy_d) + r * Math.sin(this.angle),
             4, this.angle + Math.PI * 1.65, this.angle + Math.PI * 0.35
         );
         ctx.enemies.fill();
         ctx.enemies.closePath();
+
+        ctx.enemies.translate(-hinX, -hinY);
 
         ctx.enemies.restore();
     },
@@ -214,5 +234,9 @@ Enemy = Class(MovingObject, {
             if (b.time <= 0)
                 this.bullets.splice(i, 1);
         }
+    },
+    ai: function() {
+        this.velY += Math.sin(this.angle) * this.accel;
+        this.velX += Math.cos(this.angle) * this.accel;
     }
 });

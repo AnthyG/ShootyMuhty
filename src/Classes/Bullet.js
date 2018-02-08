@@ -1,7 +1,7 @@
 Bullet = Class(MovingObject, {
     initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["uuid", "clr", "time"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, uuid, clr, time) {
+    initProps2: ["uuid", "clr", "time", "dmg"],
+    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, uuid, clr, time, dmg) {
         var dis = this;
 
         var superStr = "dis.$super('initialize', ";

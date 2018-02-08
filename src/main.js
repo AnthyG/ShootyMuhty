@@ -100,6 +100,33 @@ colors = {
     9: "#E6E9ED"
 };
 
+enemies = [];
+spawnEnemy = function() {
+    enemies.push(new Enemy(
+        p.x, // x
+        p.y, // y
+        0, 0, // vel
+        4, // speed
+        0.95, // accel
+        0.95, // fric
+        p.cx, p.cy, // c
+        0, // angle
+        3, // sprintAccel
+        20, 20, // ammo
+        30000, 0, // ammoReload
+        false, // shooting
+        4000, 0, // shootCooldown
+        10, // bulletSpeed
+        3, // bulletAccel
+        1, // bulletFriction
+        25000, // bulletTime
+        1, // bulletDmg
+        [], // bullets
+        5 // hp
+    ));
+};
+// interval = setInterval(spawnEnemy);
+
 function init(seedR2) {
     var seedR2 = seedR2 || parseInt(generateUUID());
     seedR = seedR2;
@@ -129,12 +156,16 @@ function init(seedR2) {
         3, // bulletAccel
         1, // bulletFriction
         25000, // bulletTime
-        [] // bullets
+        3, // bulletDmg
+        [], // bullets
+        10 // hp
     );
 
     old_p = {};
 
     inited = false;
+
+    spawnEnemy();
 
     requestAnimationFrame(update);
 }
@@ -412,6 +443,7 @@ function update(timestamp) {
     for (var ei = 0; ei < enemies.length; ei++) {
         var e = enemies[ei];
 
+        e.ai();
         e.move();
     }
 

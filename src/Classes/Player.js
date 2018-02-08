@@ -1,7 +1,7 @@
 Player = Class(MovingObject, {
     initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["sprintAccel", "camW", "camH", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bullets"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bullets) {
+    initProps2: ["sprintAccel", "camW", "camH", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bullets", "hp"],
+    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bulletDmg, bullets, hp) {
         var dis = this;
 
         var superStr = "dis.$super('initialize', ";
@@ -195,7 +195,9 @@ Player = Class(MovingObject, {
                     this.x, this.y, this.velX, this.velY,
                     this.bulletSpeed, this.bulletAccel, this.bulletFriction,
                     this.cx, this.cy, this.angle,
-                    generateUUID(), bulletClr, this.bulletTime
+                    generateUUID(), bulletClr,
+                    this.bulletTime,
+                    this.bulletDmg
                 )
             ) - 1;
 
