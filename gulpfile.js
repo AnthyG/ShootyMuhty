@@ -9,6 +9,7 @@ var autoprefixer = require('gulp-autoprefixer');
 var sourcemaps = require('gulp-sourcemaps');
 var buffer = require('vinyl-buffer');
 var uglify = require('gulp-uglify');
+var fs = require("fs");
 
 var paths = {
     pages: ['./src/**/*.html'],
@@ -56,6 +57,23 @@ gulp.task("styles2", function() {
 });
 
 gulp.task("scripts", function() {
+    let autoClasser = false;
+    var ClassesArr = ClassesArr = ["Class", "MovingObject", "Bullet", "Player", "Enemy"];
+    if (autoClasser)
+        ClassesArr = fs.readdirSync("./src/Classes/");
+
+    console.info("autoClasser " + (autoClasser ? "enabled" : "disabled"));
+
+    let classesStr = ``;
+    for (var i = 0; i < ClassesArr.length; i++) {
+        let c = ClassesArr[i];
+        // console.log(i, c);
+
+        classesStr += `require("./Classes/` + c + (autoClasser ? `` : `.js`) + `");\n`;
+    }
+
+    fs.writeFileSync("./src/classes.js", classesStr);
+
     browserify({
             basedir: ".",
             debug: true,
@@ -65,11 +83,11 @@ gulp.task("scripts", function() {
             insertGlobals: true
         })
         .on("error", (...err) => {
-            console.log("ERROR", err);
+            console.error("ERROR", err);
         })
         .bundle()
         .on("error", (...err) => {
-            console.log("ERROR", err);
+            console.error("ERROR", err);
         })
         .pipe(source("bundle.js"))
         .pipe(buffer())
