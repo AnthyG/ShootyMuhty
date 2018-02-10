@@ -1,25 +1,43 @@
-#game-wrapper {
+html,
+body {
+    margin: 0;
+    height: 100%;
+    background: darkslategray;
+}
+
+#app {
     width: 500px;
-    height: 500px;
-    .canvas {
-        position: absolute;
-        background: transparent;
-        &#cvs-ground {
-            background: #000000;
-        }
-    }
-    .overlay {
+    padding: 8px;
+    margin: 0 auto;
+    position: relative;
+    background: slategray;
+    #game-wrapper {
         width: 500px;
         height: 500px;
-        &#vrly-info {
-            pointer-events: none;
-            user-select: none;
-            font-size: 10px;
-            padding: 5px;
-            width: 490px;
-            height: 490px;
-            color: white;
-            text-shadow: 0px 0px 10px black;
+        .canvas {
+            width: 500px;
+            height: 500px;
+            position: absolute;
+            background: transparent;
+            &#cvs-ground {
+                background: #000000;
+            }
+        }
+        .overlay {
+            width: 500px;
+            height: 500px;
+            position: absolute;
+            background: transparent;
+            &#vrly-info {
+                pointer-events: none;
+                user-select: none;
+                font-size: 10px;
+                padding: 5px;
+                width: 490px;
+                height: 490px;
+                color: white;
+                text-shadow: 0px 0px 10px black;
+            }
         }
     }
 }

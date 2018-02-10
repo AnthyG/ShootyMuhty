@@ -188,7 +188,7 @@ spawnStaticShootingEnemy = function() {
 // interval = setInterval(spawnEnemy);
 
 function init(seedR2) {
-    var seedR2 = seedR2 || parseInt(generateUUID());
+    var seedR2 = seedR2 || parseInt(generateUUID().replace(/\D/g, ''));
     seedR = seedR2;
     seed = Math.seed(seedR)();
     log("Seed", seedR2, seed);
@@ -225,8 +225,8 @@ function init(seedR2) {
         3, // bulletDmg
         3, // bulletRadius
         [], // bullets
-        10, // hp
-        5 // radius
+        20, // hp
+        4.5 // radius
     );
 
     old_p = {};
