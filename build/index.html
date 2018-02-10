@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <link rel="stylesheet" href="css/main.min.css" />
+
+    <title>ShootyMuhty</title>
+</head>
+
+<body>
+    <div id="app">
+        <div id="game-wrapper">
+            <canvas class="canvas" id="cvs-ground" width="500" height="500"></canvas>
+            <canvas class="canvas" id="cvs-walls" width="500" height="500"></canvas>
+            <canvas class="canvas" id="cvs-items" width="500" height="500"></canvas>
+            <canvas class="canvas" id="cvs-bullets" width="500" height="500"></canvas>
+            <canvas class="canvas" id="cvs-enemies" width="500" height="500"></canvas>
+            <canvas class="canvas" id="cvs-player" width="500" height="500"></canvas>
+            <div class="overlay" id="vrly-info"></div>
+            <div class="overlay" id="vrly-events"></div>
+        </div>
+        <br />
+        <button onclick="spawnEnemy();">Spawn Enemy</button>
+        <button onclick="spawnStaticEnemy();">Spawn Static Enemy</button>
+        <button onclick="spawnStaticShootingEnemy();">Spawn Static Shooting Enemy</button>
+    </div>
+</body>
+
+<script async type="text/javascript" src="js/bundle.js"></script>
+
+</html>
