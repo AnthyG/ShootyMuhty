@@ -1,10 +1,38 @@
 Player = Class(MovingObject, {
-    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["sprintAccel", "camW", "camH", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bullets", "hp"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bulletDmg, bullets, hp) {
+    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle", "collidableWith", "isColliding", "type"],
+    initProps2: ["sprintSpeed", "sprintAccel", "camW", "camH", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bulletRadius", "bullets", "hp", "radius"],
+    initialize: function(
+        x, y,
+        velX, velY,
+        speed,
+        accel,
+        friction,
+        cx, cy,
+        angle,
+        collidableWith, isColliding,
+        type,
+        sprintSpeed,
+        sprintAccel,
+        camW, camH,
+        maxAmmo, ammo,
+        ammoReload, ammoCurReload,
+        shooting,
+        shootCooldown, shootCurCooldown,
+        bulletSpeed,
+        bulletAccel,
+        bulletFriction,
+        bulletTime,
+        bulletDmg,
+        bulletRadius,
+        bullets,
+        hp,
+        radius
+    ) {
         var dis = this;
 
-        var superStr = "dis.$super('initialize', ";
+        this.uuid = generateUUID();
+
+        var superStr = "this.$super('initialize', ";
         for (var i = 0; i < this.initProps.length; i++) {
             let p = this.initProps[i];
 
@@ -13,38 +41,49 @@ Player = Class(MovingObject, {
         superStr += ")";
         // console.log("superStr", superStr);
         eval(superStr);
+        for (var i = 0; i < this.initProps.length; i++) {
+            let p = this.initProps[i];
+
+            // console.log(p, this[p]);
+        }
 
         for (var i = 0; i < this.initProps2.length; i++) {
             let p = this.initProps2[i];
 
-            eval("dis[p] = " + p);
+            eval("this[p] = " + p);
+
+            // console.log(p, this[p]);
         }
+
+        // this.print();
     },
     print: function() {
         console.log(JSON.parse(JSON.stringify(this)), this);
     },
     move: function() {
+        // this.isColliding && console.log("isColliding", this.isColliding);
+
         if (keys[38] || keys[87]) { // Up
-            if (this.velY > -this.speed)
+            if (this.velY > -(keys[16] ? this.sprintSpeed : this.speed))
                 this.velY -= this.accel + (keys[16] ? this.sprintAccel : 0);
         }
         if (keys[39] || keys[68]) { // Right
-            if (this.velX < this.speed)
+            if (this.velX < (keys[16] ? this.sprintSpeed : this.speed))
                 this.velX += this.accel + (keys[16] ? this.sprintAccel : 0);
         }
         if (keys[40] || keys[83]) { // Down
-            if (this.velY < this.speed)
+            if (this.velY < (keys[16] ? this.sprintSpeed : this.speed))
                 this.velY += this.accel + (keys[16] ? this.sprintAccel : 0);
         }
         if (keys[37] || keys[65]) { // Left
-            if (this.velX > -this.speed)
+            if (this.velX > -(keys[16] ? this.sprintSpeed : this.speed))
                 this.velX -= this.accel + (keys[16] ? this.sprintAccel : 0);
         }
 
-        // if (Math.abs(this.velX) < 0.00001)
-        //     this.velX = 0;
-        // if (Math.abs(this.velY) < 0.00001)
-        //     this.velY = 0;
+        if (Math.abs(this.velX) < 0.00001)
+            this.velX = 0;
+        if (Math.abs(this.velY) < 0.00001)
+            this.velY = 0;
 
         this.velX *= this.friction;
         this.x += this.velX;
@@ -92,12 +131,14 @@ Player = Class(MovingObject, {
         ctx.player.save();
 
         ctx.player.fillStyle = "rgba(255, 255, 255, 0.5)";
-        ctx.player.strokeStyle = "20px solid black";
+        ctx.player.strokeStyle = "black";
+        if (this.isColliding)
+            ctx.player.strokeStyle = "pink";
         ctx.player.beginPath();
         ctx.player.arc(
             ((cvs.player.width - csize * 2) / 2) + csize,
             ((cvs.player.height - csize * 2) / 2) + csize,
-            10, 0, Math.PI * 2
+            this.radius * 2, 0, Math.PI * 2
         );
         ctx.player.stroke();
         ctx.player.fill();
@@ -131,6 +172,9 @@ Player = Class(MovingObject, {
 
         this.moveBullets(ms);
     },
+    isCollidableWith: function(obj) {
+        return (this.collidableWith.indexOf(obj.type) !== -1);
+    },
     moveFace: function() {
         var angle = -Math.atan2(-(lastY - (((cvs.player.height - csize * 2) / 2) + csize)), (lastX - (((cvs.player.width - csize * 2) / 2) + csize)));
 
@@ -145,19 +189,21 @@ Player = Class(MovingObject, {
 
         var r = 3.5;
         ctx.player.strokeStyle = "#000000";
+        ctx.player.beginPath();
         ctx.player.moveTo(((cvs.player.width - csize * 2) / 2) + csize, ((cvs.player.height - csize * 2) / 2) + csize);
         ctx.player.lineTo(
             (((cvs.player.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
             (((cvs.player.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle)
         );
         ctx.player.stroke();
+        ctx.player.closePath();
 
         ctx.player.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.player.beginPath();
         ctx.player.arc(
             (((cvs.player.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
             (((cvs.player.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle),
-            5, this.angle + Math.PI * 1.55, this.angle + Math.PI * 0.45
+            this.radius, this.angle + Math.PI * 1.55, this.angle + Math.PI * 0.45
         );
         ctx.player.fill();
         ctx.player.closePath();
@@ -172,7 +218,7 @@ Player = Class(MovingObject, {
         ctx.player.arc(
             (((cvs.player.width - csize * 2) / 2) + csize) + r * Math.cos(this.angle),
             (((cvs.player.height - csize * 2) / 2) + csize) + r * Math.sin(this.angle),
-            4, this.angle + Math.PI * 1.65, this.angle + Math.PI * 0.35
+            this.radius - 1, this.angle + Math.PI * 1.65, this.angle + Math.PI * 0.35
         );
         ctx.player.fill();
         ctx.player.closePath();
@@ -192,12 +238,19 @@ Player = Class(MovingObject, {
 
             var bi = this.bullets.push(
                 new Bullet(
-                    this.x, this.y, this.velX, this.velY,
-                    this.bulletSpeed, this.bulletAccel, this.bulletFriction,
-                    this.cx, this.cy, this.angle,
-                    generateUUID(), bulletClr,
-                    this.bulletTime,
-                    this.bulletDmg
+                    this.x, // x
+                    this.y, // y
+                    this.velX, this.velY, // vel
+                    this.bulletSpeed, // speed
+                    this.bulletAccel, // accel
+                    this.bulletFriction, // friction
+                    this.cx, this.cy, // c
+                    this.angle, // angle
+                    ["enemy"], false, "bulletPlayer", // collidableWith, isColliding, type
+                    bulletClr, // clr
+                    this.bulletTime, // time
+                    this.bulletDmg, // dmg
+                    this.bulletRadius // radius
                 )
             ) - 1;
 

@@ -1,10 +1,37 @@
 Enemy = Class(MovingObject, {
-    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["sprintAccel", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bullets", "hp"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, sprintAccel, camW, camH, maxAmmo, ammo, ammoReload, ammoCurReload, shooting, shootCooldown, shootCurCooldown, bulletSpeed, bulletAccel, bulletFriction, bulletTime, bulletDmg, bullets, hp) {
+    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle", "collidableWith", "isColliding", "type"],
+    initProps2: ["sprintSpeed", "sprintAccel", "maxAmmo", "ammo", "ammoReload", "ammoCurReload", "shooting", "shootCooldown", "shootCurCooldown", "bulletSpeed", "bulletAccel", "bulletFriction", "bulletTime", "bulletDmg", "bulletRadius", "bullets", "hp", "radius"],
+    initialize: function(
+        x, y,
+        velX, velY,
+        speed,
+        accel,
+        friction,
+        cx, cy,
+        angle,
+        collidableWith, isColliding,
+        type,
+        sprintSpeed,
+        sprintAccel,
+        maxAmmo, ammo,
+        ammoReload, ammoCurReload,
+        shooting,
+        shootCooldown, shootCurCooldown,
+        bulletSpeed,
+        bulletAccel,
+        bulletFriction,
+        bulletTime,
+        bulletDmg,
+        bulletRadius,
+        bullets,
+        hp,
+        radius
+    ) {
         var dis = this;
 
-        var superStr = "dis.$super('initialize', ";
+        this.uuid = generateUUID();
+
+        var superStr = "this.$super('initialize', ";
         for (var i = 0; i < this.initProps.length; i++) {
             let p = this.initProps[i];
 
@@ -12,39 +39,47 @@ Enemy = Class(MovingObject, {
         }
         superStr += ")";
         // console.log("superStr", superStr);
-        eval(superStr);
+        // eval(superStr);
 
         for (var i = 0; i < this.initProps2.length; i++) {
             let p = this.initProps2[i];
 
-            eval("dis[p] = " + p);
+            eval("this[p] = " + p);
+
+            // console.log(p, this[p]);
         }
+
+        this.keys = {
+            up: false,
+            right: false,
+            down: false,
+            left: false,
+            sprinting: false
+        };
+
+        // this.print();
     },
     print: function() {
         console.log(JSON.parse(JSON.stringify(this)), this);
     },
     move: function() {
-        // if (keys[38] || keys[87]) { // Up
-        if (this.velY > -this.speed)
-            this.velY -= this.accel + (keys[16] ? this.sprintAccel : 0);
-        // }
-        // if (keys[39] || keys[68]) { // Right
-        if (this.velX < this.speed)
-            this.velX += this.accel + (keys[16] ? this.sprintAccel : 0);
-        // }
-        // if (keys[40] || keys[83]) { // Down
-        if (this.velY < this.speed)
-            this.velY += this.accel + (keys[16] ? this.sprintAccel : 0);
-        // }
-        // if (keys[37] || keys[65]) { // Left
-        if (this.velX > -this.speed)
-            this.velX -= this.accel + (keys[16] ? this.sprintAccel : 0);
-        // }
+        if (this.keys.up)
+            if (this.velY > -this.speed) // Up
+                this.velY -= this.accel + (this.keys.sprinting ? this.sprintAccel : 0);
+        if (this.keys.right)
+            if (this.velX < this.speed) // Right
+                this.velX += this.accel + (this.keys.sprinting ? this.sprintAccel : 0);
+        if (this.keys.down)
+            if (this.velY < this.speed) // Down
+                this.velY += this.accel + (this.keys.sprinting ? this.sprintAccel : 0);
+        if (this.keys.left)
+            if (this.velX > -this.speed) // Left
+                this.velX -= this.accel + (this.keys.sprinting ? this.sprintAccel : 0);
 
-        // if (Math.abs(this.velX) < 0.00001)
-        //     this.velX = 0;
-        // if (Math.abs(this.velY) < 0.00001)
-        //     this.velY = 0;
+        if (Math.abs(this.velX) < 0.00001)
+            this.velX = 0;
+        if (Math.abs(this.velY) < 0.00001)
+            this.velY = 0;
 
         this.velX *= this.friction;
         this.x += this.velX;
@@ -82,13 +117,15 @@ Enemy = Class(MovingObject, {
 
         ctx.enemies.translate(hinX, hinY);
 
-        ctx.enemies.fillStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.enemies.strokeStyle = "20px solid black";
+        ctx.enemies.fillStyle = "rgba(0, 255, 255, 0.5)";
+        if (this.isColliding)
+            ctx.enemies.fillStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.enemies.strokeStyle = "black";
         ctx.enemies.beginPath();
         ctx.enemies.arc(
             cxx_d,
             cyy_d,
-            10, 0, Math.PI * 2
+            this.radius * 2, 0, Math.PI * 2
         );
         ctx.enemies.stroke();
         ctx.enemies.fill();
@@ -124,15 +161,17 @@ Enemy = Class(MovingObject, {
 
         this.moveBullets(ms);
     },
+    isCollidableWith: function(obj) {
+        return (this.collidableWith.indexOf(obj.type) !== -1);
+    },
     moveFace: function() {
         var angle = 0;
 
-        // The following doesn't quite work for these (ignoring the fact that the aren't controlled by the player)
+        // The following doesn't quite work for these (ignoring the fact that they aren't controlled by the player)
         var cxx_d = (this.cx * cnr * 2) * csize + this.x,
             cyy_d = (this.cy * cnr * 2) * csize + this.y;
 
         var angle = -Math.atan2(-((p.cy * cnr * 2 * csize + p.y) - (cyy_d)), ((p.cx * cnr * 2 * csize + p.x) - (cxx_d)));
-
 
         // log("angle", angle * (180 / Math.PI));
 
@@ -153,19 +192,21 @@ Enemy = Class(MovingObject, {
 
         var r = 3.5;
         ctx.enemies.strokeStyle = "#000000";
+        ctx.enemies.beginPath();
         ctx.enemies.moveTo(cxx_d, cyy_d);
         ctx.enemies.lineTo(
             (cxx_d) + r * Math.cos(this.angle),
             (cyy_d) + r * Math.sin(this.angle)
         );
         ctx.enemies.stroke();
+        ctx.enemies.closePath();
 
         ctx.enemies.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.enemies.beginPath();
         ctx.enemies.arc(
             (cxx_d) + r * Math.cos(this.angle),
             (cyy_d) + r * Math.sin(this.angle),
-            5, this.angle + Math.PI * 1.55, this.angle + Math.PI * 0.45
+            this.radius, this.angle + Math.PI * 1.55, this.angle + Math.PI * 0.45
         );
         ctx.enemies.fill();
         ctx.enemies.closePath();
@@ -180,7 +221,7 @@ Enemy = Class(MovingObject, {
         ctx.enemies.arc(
             (cxx_d) + r * Math.cos(this.angle),
             (cyy_d) + r * Math.sin(this.angle),
-            4, this.angle + Math.PI * 1.65, this.angle + Math.PI * 0.35
+            this.radius - 1, this.angle + Math.PI * 1.65, this.angle + Math.PI * 0.35
         );
         ctx.enemies.fill();
         ctx.enemies.closePath();
@@ -202,10 +243,19 @@ Enemy = Class(MovingObject, {
 
             var bi = this.bullets.push(
                 new Bullet(
-                    this.x, this.y, this.velX, this.velY,
-                    this.bulletSpeed, this.bulletAccel, this.bulletFriction,
-                    this.cx, this.cy, this.angle,
-                    generateUUID(), bulletClr, this.bulletTime
+                    this.x, // x
+                    this.y, // y
+                    this.velX, this.velY, // vel
+                    this.bulletSpeed, // speed
+                    this.bulletAccel, // accel
+                    this.bulletFriction, // friction
+                    this.cx, this.cy, // c
+                    this.angle, // angle
+                    ["player"], false, "bulletEnemy", // collidableWith, isColliding, type
+                    bulletClr, // clr
+                    this.bulletTime, // time
+                    this.bulletDmg, // dmg
+                    this.bulletRadius // radius
                 )
             ) - 1;
 
@@ -236,7 +286,31 @@ Enemy = Class(MovingObject, {
         }
     },
     ai: function() {
-        this.velY += Math.sin(this.angle) * this.accel;
-        this.velX += Math.cos(this.angle) * this.accel;
+        // console.log(Math.sin(this.angle), Math.cos(this.angle));
+
+        this.keys = {
+            up: false,
+            right: false,
+            down: false,
+            left: false,
+            sprinting: false
+        };
+
+        if (Math.sin(this.angle) > 0) {
+            this.keys.down = true;
+        }
+        if (Math.sin(this.angle) < 0) {
+            this.keys.up = true;
+        }
+        if (Math.cos(this.angle) > 0) {
+            this.keys.right = true;
+        }
+        if (Math.cos(this.angle) < 0) {
+            this.keys.left = true;
+        }
+
+        // Old "cheaty" way..
+        // this.velY += Math.sin(this.angle) * this.accel;
+        // this.velX += Math.cos(this.angle) * this.accel;
     }
 });

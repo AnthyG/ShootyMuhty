@@ -106,23 +106,83 @@ spawnEnemy = function() {
         p.x, // x
         p.y, // y
         0, 0, // vel
-        4, // speed
+        3.9, // speed
         0.95, // accel
-        0.95, // fric
+        0.9, // fric
         p.cx, p.cy, // c
         0, // angle
-        3, // sprintAccel
-        20, 20, // ammo
-        30000, 0, // ammoReload
-        false, // shooting
-        4000, 0, // shootCooldown
-        10, // bulletSpeed
-        3, // bulletAccel
-        1, // bulletFriction
-        25000, // bulletTime
+        ["enemy", "player", "bulletPlayer"], false, "enemy", // collidableWith, isColliding, type
+        4.9, // sprintSpeed
+        2, // sprintAccel
+        25, 25, // ammo
+        35000, 0, // ammoReload
+        true, // shooting
+        9000, 0, // shootCooldown
+        7.5, // bulletSpeed
+        2.5, // bulletAccel
+        0.999, // bulletFriction
+        5000, // bulletTime
         1, // bulletDmg
+        3, // bulletRadius
         [], // bullets
-        5 // hp
+        5, // hp
+        4 // radius
+    ));
+};
+spawnStaticEnemy = function() {
+    enemies.push(new Enemy(
+        p.x, // x
+        p.y, // y
+        0, 0, // vel
+        0, // speed
+        0, // accel
+        0, // fric
+        p.cx, p.cy, // c
+        0, // angle
+        ["enemy", "player", "bulletPlayer"], false, "enemy", // collidableWith, isColliding, type
+        0, // sprintSpeed
+        0, // sprintAccel
+        0, 0, // ammo
+        0, 0, // ammoReload
+        false, // shooting
+        0, 0, // shootCooldown
+        0, // bulletSpeed
+        0, // bulletAccel
+        0, // bulletFriction
+        0, // bulletTime
+        0, // bulletDmg
+        3, // bulletRadius
+        [], // bullets
+        10, // hp
+        6 // radius
+    ));
+};
+spawnStaticShootingEnemy = function() {
+    enemies.push(new Enemy(
+        p.x, // x
+        p.y, // y
+        0, 0, // vel
+        0, // speed
+        0, // accel
+        0, // fric
+        p.cx, p.cy, // c
+        0, // angle
+        ["enemy", "player", "bulletPlayer"], false, "enemy", // collidableWith, isColliding, type
+        0, // sprintSpeed
+        0, // sprintAccel
+        25, 25, // ammo
+        35000, 0, // ammoReload
+        true, // shooting
+        9000, 0, // shootCooldown
+        7.5, // bulletSpeed
+        2.5, // bulletAccel
+        0.999, // bulletFriction
+        5000, // bulletTime
+        1, // bulletDmg
+        3, // bulletRadius
+        [], // bullets
+        1, // hp
+        5 // radius
     ));
 };
 // interval = setInterval(spawnEnemy);
@@ -146,26 +206,130 @@ function init(seedR2) {
         0.875, // fric
         0, 0, // c
         0, // angle
-        3, // sprintAccel
+        ["enemy", "bulletEnemy"], false, "player", // collidableWith, isColliding, type
+        5, // sprintSpeed
+        1.75, // sprintAccel
         camSize, camSize, // cam
         20, 20, // ammo
         30000, 0, // ammoReload
         false, // shooting
-        4000, 0, // shootCooldown
-        10, // bulletSpeed
-        3, // bulletAccel
+        10000, 0, // shootCooldown
+        // 0, // bulletSpeed
+        // 0, // bulletAccel
+        // 0, // bulletFriction
+        // 50000, // bulletTime
+        7.5, // bulletSpeed
+        2.75, // bulletAccel
         1, // bulletFriction
-        25000, // bulletTime
+        7500, // bulletTime
         3, // bulletDmg
+        3, // bulletRadius
         [], // bullets
-        10 // hp
+        10, // hp
+        5 // radius
     );
 
     old_p = {};
 
     inited = false;
 
-    spawnEnemy();
+    spawnStaticEnemy();
+
+    quadTree = new QuadTree({
+        x: 0,
+        y: 0,
+        width: cvs.ground.width,
+        height: cvs.ground.height
+    });
+
+    collisionInterval = setInterval(function() {
+        quadTree.clear();
+
+        var copy_p = JSON.parse(JSON.stringify(p));
+
+        copy_p.isColliding = false;
+        copy_p.isCollidingArr = {};
+
+        quadTree.insert(copy_p);
+
+        for (var bi = 0; bi < copy_p.bullets.length; bi++) {
+            copy_p.bullets[bi].isColliding = false;
+            copy_p.bullets[bi].isCollidingArr = {};
+        }
+        quadTree.insert(copy_p.bullets);
+
+        var copy_enemies = JSON.parse(JSON.stringify(enemies));
+
+        for (var ei = 0; ei < copy_enemies.length; ei++) {
+            copy_enemies[ei].isColliding = false;
+            copy_enemies[ei].isCollidingArr = [];
+
+            for (var bi = 0; bi < copy_enemies[ei].bullets.length; bi++) {
+                copy_enemies[ei].bullets[bi].isColliding = false;
+                copy_enemies[ei].bullets[bi].isCollidingArr = {};
+            }
+
+            quadTree.insert(copy_enemies[ei].bullets);
+        }
+
+        quadTree.insert(copy_enemies);
+        // log(JSON.parse(JSON.stringify(quadTree.getAllObjects(objs = []))));
+
+        detectCircularCollision(quadTree, function(_quadTree) {
+            // log(JSON.parse(JSON.stringify(_quadTree.getAllObjects(objs = []))), JSON.parse(JSON.stringify(p.isColliding)));
+            // log(JSON.parse(JSON.stringify(_quadTree.getAllObjects(objs = []))), JSON.parse(JSON.stringify(p.bullets[0].isColliding)));
+
+            p.isColliding = copy_p.isColliding;
+
+            for (var bi = 0; bi < copy_p.bullets.length; bi++) {
+                p.bullets[bi].isColliding = copy_p.bullets[bi].isColliding;
+
+                if (p.bullets[bi].isColliding) {
+                    // log(bi, "is colliding", copy_p.bullets[bi].isCollidingArr.hasOwnProperty("enemy"), copy_p.bullets[bi].isCollidingArr.enemy[0], typeof copy_p.bullets[bi].isCollidingArr.enemy[0] !== "undefined");
+                    if (copy_p.bullets[bi].isCollidingArr.hasOwnProperty("enemy") && typeof copy_p.bullets[bi].isCollidingArr.enemy[0] !== "undefined") {
+                        // log(bi, "hit enemy", copy_p.bullets[bi].isCollidingArr.enemy[0]);
+                        copy_p.bullets[bi].isCollidingArr.enemy[0].hp -= copy_p.bullets[bi].dmg;
+                    }
+                    p.bullets[bi].time = 0;
+                    p.bullets.splice(bi, 1);
+                }
+            }
+
+            for (var ei = 0; ei < enemies.length; ei++) {
+                enemies[ei].isColliding = copy_enemies[ei].isColliding;
+                enemies[ei].hp = copy_enemies[ei].hp;
+
+                if (enemies[ei].hp <= 0) {
+                    enemies.splice(ei, 1);
+                    continue;
+                }
+
+                for (var bi = 0; bi < enemies[ei].bullets.length; bi++) {
+                    enemies[ei].bullets[bi].isColliding = copy_enemies[ei].bullets[bi].isColliding;
+
+                    if (enemies[ei].bullets[bi].isColliding) {
+                        // log(bi, "is colliding", copy_enemies[ei].bullets[bi].isCollidingArr.hasOwnProperty("player"), copy_enemies[ei].bullets[bi].isCollidingArr.player[0], typeof copy_enemies[ei].bullets[bi].isCollidingArr.player[0] !== "undefined");
+                        if (copy_enemies[ei].bullets[bi].isCollidingArr.hasOwnProperty("player") && typeof copy_enemies[ei].bullets[bi].isCollidingArr.player[0] !== "undefined") {
+                            // log(bi, "hit player", copy_enemies[ei].bullets[bi].isCollidingArr.player[0]);
+                            copy_enemies[ei].bullets[bi].isCollidingArr.player[0].hp -= copy_enemies[ei].bullets[bi].dmg;
+                        }
+                        enemies[ei].bullets[bi].time = 0;
+                        enemies[ei].bullets.splice(bi, 1);
+                    }
+                }
+            }
+
+            p.hp = copy_p.hp;
+        });
+    }, 16.6666 / 10);
+
+    aiInterval = setInterval(function() {
+        for (var ei = 0; ei < enemies.length; ei++) {
+            var e = enemies[ei];
+
+            e.ai();
+        }
+    }, 16.6666);
 
     requestAnimationFrame(update);
 }
@@ -176,7 +340,7 @@ iterateCvsLoads = function(cb, cvsLoads) {
     for (var li = 0; li < cvsLoads.length; li++) {
         var l = cvsLoads[li];
 
-        cb(l, li, cvsLoads);
+        typeof cb === "function" && cb(l, li, cvsLoads);
     }
 }
 
@@ -443,7 +607,7 @@ function update(timestamp) {
     for (var ei = 0; ei < enemies.length; ei++) {
         var e = enemies[ei];
 
-        e.ai();
+        // e.ai();
         e.move();
     }
 
@@ -491,6 +655,8 @@ function update(timestamp) {
     for (var ei = 0; ei < enemies.length; ei++) {
         var e = enemies[ei];
 
+        e.tick(timestamp_diff);
+
         e.draw();
     }
 
@@ -511,6 +677,12 @@ function update(timestamp) {
         "x | y: " + p.x + " | " + p.y,
         "cx | cy: " + p.cx + " | " + p.cy,
         // "velX | velY: " + p.velX + " | " + p.velY,
+        "velX | velY: " + Math.round(p.velX) + " | " + Math.round(p.velY),
+        "hp: " + p.hp,
+        // "isColliding: " + p.isColliding,
+        // (enemies[0] && "eIsColliding: " + enemies[0].isColliding),
+        // (p.bullets[0] && "bIsColliding: " + p.bullets[0].isColliding),
+        // "keys: " + keys.join(", "),
         // "lastX | lastY: " + lastX + " | " + lastY,
         // "rad: " + p.faceDir,
         "seed: " + seed,

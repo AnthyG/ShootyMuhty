@@ -1,10 +1,26 @@
 Bullet = Class(MovingObject, {
-    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle"],
-    initProps2: ["uuid", "clr", "time", "dmg"],
-    initialize: function(x, y, velX, velY, speed, accel, friction, cx, cy, angle, uuid, clr, time, dmg) {
+    initProps: ["x", "y", "velX", "velY", "speed", "accel", "friction", "cx", "cy", "angle", "collidableWith", "isColliding", "type"],
+    initProps2: ["clr", "time", "dmg"],
+    initialize: function(
+        x, y,
+        velX, velY,
+        speed,
+        accel,
+        friction,
+        cx, cy,
+        angle,
+        collidableWith, isColliding,
+        type,
+        clr,
+        time,
+        dmg,
+        radius
+    ) {
         var dis = this;
 
-        var superStr = "dis.$super('initialize', ";
+        this.uuid = generateUUID();
+
+        var superStr = "this.$super('initialize', ";
         for (var i = 0; i < this.initProps.length; i++) {
             let p = this.initProps[i];
 
@@ -17,7 +33,9 @@ Bullet = Class(MovingObject, {
         for (var i = 0; i < this.initProps2.length; i++) {
             let p = this.initProps2[i];
 
-            eval("dis[p] = " + p);
+            eval("this[p] = " + p);
+
+            // console.log(p, this[p]);
         }
     },
     print: function() {
@@ -25,9 +43,29 @@ Bullet = Class(MovingObject, {
     },
     move: function() {
         // this.print();
+        // this.isColliding && console.log("isColliding", JSON.parse(JSON.stringify(this)), this.isColliding);
 
+        // if (Math.sin(this.angle) > 0) {
+        //     if (this.velY > -this.speed) // Up
+        //         this.velY -= this.accel;
+        // }
+        // if (Math.sin(this.angle) < 0) {
+        //     if (this.velX < this.speed) // Right
+        //         this.velX += this.accel;
+        // }
+        // if (Math.cos(this.angle) > 0) {
+        //     if (this.velY < this.speed) // Down
+        //         this.velY += this.accel;
+        // }
+        // if (Math.cos(this.angle) < 0) {
+        //     if (this.velX > -this.speed) // Left
+        //         this.velX -= this.accel;
+        // }
+
+        // if (Math.abs(this.velY) < this.speed)
         // if (this.velY > -this.speed && this.velY < this.speed)
         this.velY += Math.sin(this.angle) * this.accel;
+        // if (Math.abs(this.velX) < this.speed)
         // if (this.velX < this.speed && this.velX > -this.speed)
         this.velX += Math.cos(this.angle) * this.accel;
 
@@ -63,10 +101,12 @@ Bullet = Class(MovingObject, {
 
         ctx.bullets.fillStyle = this.clr + "ee";
         ctx.bullets.strokeStyle = "rgba(0, 0, 0, 0.95)";
+        if (this.isColliding)
+            ctx.bullets.strokeStyle = "rgba(255, 255, 0, 0.8)";
         ctx.bullets.beginPath();
         ctx.bullets.arc((this.cx * cnr * 2) * csize + this.x + csize, (this.cy * cnr * 2) * csize + this.y + csize,
             // ctx.arc((this.cx - dat.cx) * cnr * 2 * csize + (this.x - dat.x) + csize, (this.cy - dat.cy) * cnr * 2 * csize + (this.y - dat.y) + csize,
-            5, 0, Math.PI * 2
+            this.radius, 0, Math.PI * 2
         );
         ctx.bullets.stroke();
         ctx.bullets.fill();
@@ -80,5 +120,8 @@ Bullet = Class(MovingObject, {
         // log("tick 2 ", ms);
 
         this.time -= ms;
+    },
+    isCollidableWith: function(obj) {
+        return (this.collidableWith.indexOf(obj.type) !== -1);
     }
 });
